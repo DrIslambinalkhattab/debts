@@ -193,6 +193,21 @@ background:radial-gradient(120% 100% at 100% 0,#2f9467 0,transparent 58%),linear
 .toast{position:fixed;top:calc(env(safe-area-inset-top) + 16px);left:50%;transform:translate(-50%,-90px);z-index:60;background:#16241c;color:#fff;padding:12px 20px;border-radius:16px;font-weight:700;font-size:14px;display:flex;gap:9px;align-items:center;transition:transform .5s var(--ease);box-shadow:0 14px 30px -8px rgba(0,0,0,.4)}
 .toast.show{transform:translate(-50%,0)}.toast i{color:#6fd3a0}
 @keyframes up{from{opacity:0;transform:translateY(14px)}}
+.bar .r{display:flex;align-items:center;gap:8px;min-width:0}
+.sync{display:flex;align-items:center;gap:7px;height:42px;padding:0 13px;border-radius:14px;background:rgba(255,255,255,.12);color:#fff;font-size:12.5px;font-weight:700;white-space:nowrap;transition:.2s}
+.sync:active{transform:scale(.95)}.sync i{font-size:12px}
+.sync.ok i{color:#6fd3a0}.sync.pend{background:rgba(233,162,59,.3)}.sync.pend i{color:#ffd48a}.sync.bad{background:rgba(200,69,59,.6)}.sync.off{opacity:.85}
+.sync.busy i{animation:spin 1s linear infinite}@keyframes spin{to{transform:rotate(360deg)}}
+.nudge{display:flex;align-items:center;gap:10px;margin:6px 18px 0;padding:12px 14px;border-radius:16px;background:#fdf1dc;color:#8a5a0a;font-size:13.5px;font-weight:700;box-shadow:var(--sh)}
+.nudge span{flex:1;line-height:1.5}.nudge button{background:#8a5a0a;color:#fff;border-radius:12px;padding:8px 14px;font-weight:800;font-size:13px}
+.nudge.red{background:var(--rs);color:var(--r)}.nudge.hide{display:none}
+.kv{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;padding:12px 2px;border-bottom:1px solid var(--line);font-size:14.5px;line-height:1.6}
+.kv span{color:var(--mut)}.kv b{font-weight:800;text-align:left}
+.kv .mini{display:block;margin:8px 0 0;padding:8px 12px;border-radius:12px;background:var(--gs);color:var(--g);font-weight:800;font-size:13px}
+.hint{font-size:13px;color:var(--mut);line-height:1.8;margin:6px 2px 14px}
+.tb em.pn{color:#8a5a0a}.tb em.cf,.tb em.vo{color:var(--r);background:var(--rs)}
+.tx.vd{opacity:.6}.tx.vd .tact{display:none}.tx.vd .ta strong,.tx.vd .tb b{text-decoration:line-through}
+@media(max-width:370px){.brand{font-size:16px;gap:8px}.brand i{width:34px;height:34px}.sync{padding:0 9px;font-size:11.5px}}
 @media(prefers-reduced-motion:reduce){*{animation:none!important;transition-duration:.01s!important}}
 </style>
 </head>
@@ -201,7 +216,7 @@ background:radial-gradient(120% 100% at 100% 0,#2f9467 0,transparent 58%),linear
   <header class="hero">
     <div class="bar">
       <div class="brand"><i class="fa-solid fa-basket-shopping"></i>دفتر الديون</div>
-      <button class="ib" id="menuBtn" aria-label="خيارات"><i class="fa-solid fa-ellipsis"></i></button>
+      <div class="r"><button class="sync off" id="syncBtn" aria-label="حالة المزامنة"></button><button class="ib" id="menuBtn" aria-label="خيارات"><i class="fa-solid fa-ellipsis"></i></button></div>
     </div>
     <div class="total"><p>إجمالي المبالغ المستحقة لك</p><h1 id="total">٠<small>ج.م</small></h1></div>
     <div class="stats">
@@ -214,6 +229,7 @@ background:radial-gradient(120% 100% at 100% 0,#2f9467 0,transparent 58%),linear
     <label class="search"><i class="fa-solid fa-magnifying-glass"></i><input id="q" placeholder="ابحث عن عميل..." autocomplete="off"></label>
     <div class="tabs" data-v="owe"><button data-t="owe" class="on"></button><button data-t="all"></button></div>
   </div>
+  <div class="nudge hide" id="nudge"></div>
   <main id="list"></main>
   <button class="fab" id="addC"><i class="fa-solid fa-user-plus"></i>عميل جديد</button>
 </div>
@@ -224,10 +240,12 @@ background:radial-gradient(120% 100% at 100% 0,#2f9467 0,transparent 58%),linear
 <input type="file" id="file" accept="application/json" hidden>
 
 <script>
-const $=s=>document.querySelector(s),KEY='dyoon_v1';
-let db={c:[]},bad=false;
-const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(db))}catch(e){toast('تعذّر الحفظ على الجهاز، نزّل نسخة احتياطية','fa-circle-exclamation')}};
-const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,6);
+const $=s=>document.querySelector(s);
+/* ===== إعدادات Supabase: الصق رابط المشروع والمفتاح العام (anon / publishable) هنا. لا تضع مفتاح service_role أبدًا ===== */
+const SB_URL='',SB_KEY='';
+const SB_ON=/^https:\/\//.test(SB_URL)&&SB_KEY.length>20,WARN_H=2,OVERLAP=6e5;
+let db={c:[],conf:[]};
+const uid=()=>crypto.randomUUID?crypto.randomUUID():'10000000-1000-4000-8000-100000000000'.replace(/[018]/g,c=>(c^crypto.getRandomValues(new Uint8Array(1))[0]&15>>c/4).toString(16));
 const nf=new Intl.NumberFormat('ar-EG',{maximumFractionDigits:2});
 const money=n=>nf.format(Math.abs(n))+'<small>ج.م</small>';
 const esc=s=>String(s||'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
@@ -238,16 +256,171 @@ const dateL=d=>d===today()?'اليوم':new Date(d+'T12:00').toLocaleDateString(
 const lastD=c=>c.tx.reduce((m,t)=>t.date>m?t.date:m,'');
 const COL=[['#e3f1e9','#1d6b47'],['#fdf1dc','#b8730c'],['#e6eefb','#2f5fa8'],['#f7e6f0','#a23d7c'],['#fbe9e6','#c8453b'],['#ece8f8','#5f48b0']];
 const av=c=>{const h=[...c.id].reduce((a,x)=>a+x.charCodeAt(0),0)%COL.length;return `<div class="av" style="background:${COL[h][0]};color:${COL[h][1]}">${esc(c.name.trim()[0]||'؟')}</div>`};
-const valid=d=>!!d&&Array.isArray(d.c)&&d.c.every(c=>c&&c.id!=null&&typeof c.name==='string'&&Array.isArray(c.tx)&&c.tx.every(t=>t&&t.id!=null&&(t.type==='debt'||t.type==='pay')&&isFinite(+t.amount)&&+t.amount>0));
-const clean=d=>({c:d.c.map(c=>({id:String(c.id),name:c.name,phone:String(c.phone||''),tx:c.tx.map((t,i)=>({id:String(t.id),type:t.type,amount:+t.amount,note:String(t.note||''),date:/^\d{4}-\d{2}-\d{2}$/.test(t.date)?t.date:today(),ts:+t.ts||i,edited:!!t.edited}))}))});
-try{const raw=localStorage.getItem(KEY);if(raw){let p=null;try{p=JSON.parse(raw)}catch(e){}
-  if(valid(p))db=clean(p);else{bad=true;try{localStorage.setItem(KEY+'_corrupt',raw)}catch(e){}}}}catch(e){}
+/* ===== طبقة البيانات: سجل عمليات ثابت (IndexedDB) + مزامنة Supabase =====
+   كل دين/دفعة/تعديل/إلغاء = عملية مستقلة بمعرّف UUID ثابت. الرصيد يُحسب دائمًا من العمليات ولا يُرفع أبدًا. */
+const TYPES=['customer_create','customer_update','customer_archive','debt','payment','tx_amend','tx_void','review_ack'];
+const WIRE=['id','type','customer_id','target_id','base_id','amount','op_date','note','name','phone','flag','device_id','client_created_at'];
+const UUID=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i,DATE=/^\d{4}-\d{2}-\d{2}$/;
+let IDB=null,DBOK=false,DEV='',META={},OPS=new Map(),ORD=0,syncing=false,again=false;
+const ST={busy:false,err:'',codeBad:false,fails:0,lastTry:0};
+const ordOf=o=>o.ord??Date.parse(o.client_created_at)*1000,cmp=(a,b)=>((a.seq??1e18)-(b.seq??1e18))||ordOf(a)-ordOf(b)||(a.id<b.id?-1:1);
+const wire=o=>Object.fromEntries(WIRE.map(k=>[k,o[k]??null]));
+const sameOp=(a,b)=>a.type===b.type&&a.customer_id===b.customer_id&&(+a.amount||0)===(+b.amount||0)&&(a.op_date||null)===(b.op_date||null)&&(a.target_id||null)===(b.target_id||null);
+const mk=(type,o)=>({target_id:null,base_id:null,amount:null,op_date:null,note:null,name:null,phone:null,flag:null,...o,id:o.id||uid(),type,device_id:DEV,client_created_at:new Date().toISOString(),ord:Date.now()*1000+(ORD++%1000),sync:'pending',tries:0,err:null});
+const T2=x=>x==='pay'?'payment':'debt';
+const pend0=()=>[...OPS.values()].filter(o=>o.sync==='pending'),errs=()=>[...OPS.values()].filter(o=>o.sync==='error');
+const ago=ts=>{const m=Math.floor((Date.now()-ts)/6e4);return m<1?'الآن':m<60?'منذ '+nf.format(m)+' د':m<1440?'منذ '+nf.format(Math.floor(m/60))+' س':'منذ '+nf.format(Math.floor(m/1440))+' يوم'};
+
+const idbOpen=()=>new Promise((res,rej)=>{const r=indexedDB.open('dyoon_ledger',1);r.onupgradeneeded=()=>{const d=r.result;d.createObjectStore('ops',{keyPath:'id'}).createIndex('sync','sync');d.createObjectStore('meta',{keyPath:'k'})};r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error);r.onblocked=()=>rej(new Error('blocked'))});
+const txn=(s,m)=>IDB.transaction(s,m,{durability:'strict'});
+const done=t=>new Promise((res,rej)=>{t.oncomplete=()=>res();t.onabort=()=>rej(t.error||new Error('abort'))});
+async function boot(){try{IDB=await idbOpen();IDB.onclose=()=>{DBOK=false;refresh()};
+  const t=IDB.transaction(['ops','meta']),a=t.objectStore('ops').getAll(),b=t.objectStore('meta').getAll();await done(t);
+  a.result.forEach(o=>OPS.set(o.id,o));b.result.forEach(m=>META[m.k]=m.v);DBOK=true;
+  if(!META.device)await saveMeta('device',uid());DEV=META.device}catch(e){DBOK=false;console.error('storage',e)}}
+async function saveMeta(k,v){META[k]=v;if(!DBOK)return false;try{const t=txn('meta','readwrite');t.objectStore('meta').put({k,v});await done(t);return true}catch(e){return false}}
+/* لا تُعتبر العملية محفوظة إلا بعد اكتمال transaction (oncomplete)؛ أي فشل/امتلاء مساحة يرفض العملية بوضوح */
+async function _put(ops){const t=txn('ops','readwrite'),s=t.objectStore('ops'),added=[];
+  ops.forEach(o=>{const r=s.add(o);r.onsuccess=()=>added.push(o);r.onerror=ev=>{if(r.error&&r.error.name==='ConstraintError')ev.preventDefault()}});
+  await done(t);added.forEach(o=>OPS.set(o.id,o));rebuild();return added.length}
+async function putOps(ops){if(!DBOK)throw Object.assign(new Error('storage'),{name:'StorageDead'});
+  try{return await _put(ops)}catch(e){if(e&&e.name==='InvalidStateError'){IDB=await idbOpen();return await _put(ops)}throw e}}
+async function mark(list,patch){const t=txn('ops','readwrite'),s=t.objectStore('ops'),out=list.map(o=>({...(OPS.get(o.id)||o),...(typeof patch==='function'?patch(o):patch)}));
+  out.forEach(o=>s.put(o));await done(t);out.forEach(o=>OPS.set(o.id,o))}
+async function commit(ops,btn){if(btn)btn.disabled=true;
+  try{await putOps(ops);refresh();sync('new');return true}
+  catch(e){toast(e&&e.name==='QuotaExceededError'?'مساحة الموبايل ممتلئة — العملية لم تُسجَّل. فضّي مساحة وجرّب تاني':e&&e.name==='StorageDead'?'التخزين على الجهاز غير متاح — العملية لم تُسجَّل':'تعذّر الحفظ على الجهاز — العملية لم تُسجَّل','fa-circle-exclamation',6000);return false}
+  finally{if(btn)btn.disabled=false}}
+
+/* الحالة الحالية تُشتق بالكامل من السجل (ترتيب الخادم seq أولًا، ثم العمليات غير المرفوعة بترتيب وقتها) */
+function rebuild(){const ops=[...OPS.values()].sort(cmp),C=new Map(),T=new Map();
+  for(const o of ops){const id=o.customer_id;
+    if(o.type==='customer_create'||o.type==='customer_update'){let c=C.get(id);if(!c){c={id,name:'',phone:'',archived:false,tx:[],vx:[]};C.set(id,c)}c.name=o.name;c.phone=o.phone||''}
+    else if(o.type==='customer_archive'){const c=C.get(id);if(c)c.archived=!!o.flag}}
+  for(const o of ops)if(o.type==='debt'||o.type==='payment')T.set(o.id,{id:o.id,cid:o.customer_id,type:o.type==='debt'?'debt':'pay',amount:+o.amount,note:o.note||'',date:o.op_date,ts:Date.parse(o.client_created_at)||0,edited:false,voided:false,conflict:false,head:o.id,pend:o.sync!=='synced'});
+  for(const o of ops){const t=T.get(o.target_id);if(!t)continue;
+    if(o.type==='tx_amend'||o.type==='tx_void'){if(o.base_id!==t.head)t.conflict=true;t.head=o.id;t.pend=t.pend||o.sync!=='synced';
+      if(o.type==='tx_void')t.voided=true;else{t.amount=+o.amount;t.date=o.op_date;t.note=o.note||'';t.edited=true}}
+    else if(o.type==='review_ack'){t.conflict=false;t.pend=t.pend||o.sync!=='synced'}}
+  const all=[...C.values()];
+  for(const t of T.values()){let c=C.get(t.cid);if(!c){c={id:t.cid,name:'عميل غير مكتمل',phone:'',archived:false,tx:[],vx:[]};C.set(t.cid,c);all.push(c)}(t.voided?c.vx:c.tx).push(t)}
+  db={c:all.filter(c=>!c.archived||Math.abs(bal(c))>.001),conf:[...T.values()].filter(t=>t.conflict).map(t=>({t,c:C.get(t.cid)}))}}
+function rerender(){if(cur&&db.c.some(c=>c.id===cur))detail();home()}
+function refresh(){renderSync();renderNudge()}
+
+/* ----- الاتصال بـ Supabase: fetch مباشر على دوال RPC (لا مكتبات)، مع مهلة ----- */
+async function rpc(fn,args,ms=8000){const ctl=new AbortController(),tm=setTimeout(()=>ctl.abort(),ms);let r;
+  try{r=await fetch(SB_URL+'/rest/v1/rpc/'+fn,{method:'POST',headers:{'Content-Type':'application/json',apikey:SB_KEY,...(SB_KEY.startsWith('eyJ')?{Authorization:'Bearer '+SB_KEY}:{})},body:JSON.stringify(args),signal:ctl.signal});
+    if(!r.ok){let m='';try{m=(await r.json()).message||''}catch(e){}const x=new Error(m||'HTTP '+r.status);x.status=r.status;throw x}
+    return await r.json()}
+  catch(e){if(e&&e.status)throw e;const x=new Error('offline');x.offline=true;throw x}
+  finally{clearTimeout(tm)}}
+async function mergeRemote(rows){const t=txn('ops','readwrite'),s=t.objectStore('ops'),put=[];
+  for(const r of rows){const ex=OPS.get(r.id);
+    if(!ex){const o={...wire(r),seq:r.seq,received_at:r.received_at,sync:'synced',tries:0,err:null};s.put(o);put.push(o)}
+    else{const o={...ex,seq:r.seq,received_at:r.received_at};if(sameOp(ex,r)){o.sync='synced';o.err=null}else{o.sync='error';o.err='تعارض: نفس المعرّف بمحتوى مختلف'}
+      if(o.sync!==ex.sync||o.seq!==ex.seq){s.put(o);put.push(o)}}}
+  await done(t);put.forEach(o=>OPS.set(o.id,o));if(put.length){rebuild();rerender()}return put.length}
+/* الرفع أولًا ثم التنزيل. العملية لا تصبح synced إلا إذا رجّع الخادم معرّفها في acked (أو ظهرت في التنزيل) */
+async function sync(why){
+  if(!DBOK||!SB_ON||!META.code)return;
+  if(syncing){again=true;return}
+  syncing=true;ST.busy=true;ST.lastTry=Date.now();refresh();
+  try{
+    await rpc('ping',{p_code:META.code},5000);ST.codeBad=false;
+    if(!META.reg){await rpc('register_device',{p_code:META.code,p_device_id:DEV,p_name:META.dname||''});await saveMeta('reg',1)}
+    let pushed=false;
+    for(let g=0;g<60;g++){const batch=pend0().sort((a,b)=>ordOf(a)-ordOf(b)).slice(0,40);if(!batch.length)break;
+      const res=await rpc('push_ops',{p_code:META.code,p_device_id:DEV,p_ops:batch.map(wire)},15000),ack=new Set(res.acked||[]),bad=new Map((res.errors||[]).map(x=>[x.id,x.msg]));
+      const okL=batch.filter(o=>ack.has(o.id)),erL=batch.filter(o=>!ack.has(o.id)&&bad.has(o.id));
+      if(okL.length)await mark(okL,{sync:'synced',err:null});
+      if(erL.length)await mark(erL,o=>({sync:'error',err:String(bad.get(o.id))}));
+      if(!okL.length&&!erL.length)throw new Error('لم يصل تأكيد من الخادم');pushed=true}
+    rebuild();if(pushed)rerender();
+    let after=0,max=META.cursor||'',since=META.cursor?new Date(Date.parse(META.cursor)-OVERLAP).toISOString():'1970-01-01T00:00:00Z';
+    for(let g=0;g<400;g++){const r=await rpc('pull_ops',{p_code:META.code,p_since:since,p_after_seq:after,p_limit:500},15000),rows=r.rows||[];
+      if(rows.length)await mergeRemote(rows);
+      rows.forEach(x=>{after=Math.max(after,x.seq);if(!max||Date.parse(x.received_at)>Date.parse(max))max=x.received_at});
+      if(!r.has_more)break}
+    await saveMeta('cursor',max);await saveMeta('last',Date.now());ST.fails=0;ST.err=''}
+  catch(e){if(e&&e.message==='invalid_code'){ST.codeBad=true;ST.err='كود الدكان غير صحيح'}else if(e&&e.offline){ST.err=''}else{ST.fails++;ST.err=(e&&e.message)||'خطأ غير معروف'}}
+  finally{syncing=false;ST.busy=false;refresh();if(again){again=false;setTimeout(()=>sync('again'),300)}}}
+const tick=()=>{if(!SB_ON||!DBOK||document.hidden)return;if(pend0().length||Date.now()-ST.lastTry>12e4)sync('tick');refresh()};
+setInterval(tick,30000);
+document.addEventListener('visibilitychange',()=>{if(!document.hidden)sync('visible')});
+addEventListener('online',()=>sync('online'));
+
+/* ----- مؤشرات الحالة ----- */
+function renderSync(){const b=$('#syncBtn');if(!b)return;const p=pend0().length,bad=!DBOK||errs().length||ST.codeBad||db.conf.length||ST.fails>=3;let cls,ic,tx;
+  if(!DBOK){cls='bad';ic='fa-triangle-exclamation';tx='التخزين متوقف'}
+  else if(bad){cls='bad';ic='fa-circle-exclamation';tx=ST.codeBad?'الكود غير صحيح':'تحتاج مراجعة'}
+  else if(!SB_ON||!META.code){cls='off';ic='fa-link-slash';tx=p?nf.format(p)+' لم تُرفع':'غير مربوط'}
+  else if(ST.busy){cls='busy';ic='fa-rotate';tx=p?nf.format(p)+' · جارِ الرفع':'جارِ المزامنة'}
+  else if(p){cls='pend';ic='fa-cloud-arrow-up';tx=nf.format(p)+' لم تُرفع'}
+  else{cls='ok';ic='fa-circle-check';tx=META.last?ago(META.last):'لم تتم بعد'}
+  b.className='sync '+cls;b.innerHTML=`<i class="fa-solid ${ic}"></i><span>${tx}</span>`}
+function renderNudge(){const n=$('#nudge');if(!n)return;
+  if(!DBOK){n.className='nudge red';n.innerHTML='<i class="fa-solid fa-triangle-exclamation"></i><span>التخزين على الجهاز غير متاح — لا تسجّل أي عملية قبل حل المشكلة</span>';return}
+  const P=pend0(),old=P.length?Math.min(...P.map(o=>Date.parse(o.client_created_at))):0,h=(Date.now()-old)/36e5;
+  if(P.length&&(h>=WARN_H||P.length>=10)){n.className='nudge';n.innerHTML=`<i class="fa-solid fa-triangle-exclamation"></i><span>${nf.format(P.length)} عملية لم تُرفع${h>=1?' من '+nf.format(Math.floor(h))+' ساعة':''} — ابعت نسخة احتياطية الآن</span><button id="nudgeGo">إرسال</button>`}
+  else n.className='nudge hide'}
+
+/* ----- النسخ الاحتياطي والاسترجاع (دمج بالمعرّف، لا يستبدل الدفتر أبدًا) ----- */
+const sha=async s=>{try{return[...new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(s)))].map(b=>b.toString(16).padStart(2,'0')).join('')}catch(e){return null}};
+async function makeBackup(kind){const ops=[...OPS.values()].filter(o=>kind==='full'||o.sync!=='synced').sort((a,b)=>ordOf(a)-ordOf(b)).map(wire);
+  return{name:`dyoon-${kind}-${today()}-${DEV.slice(0,4)}.json`,text:JSON.stringify({app:'dyoon',v:2,kind,device:DEV,at:new Date().toISOString(),count:ops.length,sha256:await sha(JSON.stringify(ops)),ops})}}
+function download(name,text){const a=document.createElement('a'),u=URL.createObjectURL(new Blob([text],{type:'application/json'}));a.href=u;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),6e4)}
+async function exportFull(){shut();const b=await makeBackup('full');download(b.name,b.text);toast('تم تنزيل نسخة كاملة','fa-file-export')}
+async function shareBackup(kind){shut();if(!pend0().length&&!errs().length)return toast('مفيش عمليات غير مرفوعة','fa-circle-check');
+  const b=await makeBackup(kind),f=new File([b.text],b.name,{type:'application/json'});
+  if(navigator.canShare&&navigator.canShare({files:[f]})){try{await navigator.share({files:[f],title:'نسخة دفتر الديون'});return toast('اتأكد إن الإرسال اكتمل في التطبيق اللي اخترته','fa-share-nodes',5000)}catch(e){if(e&&e.name==='AbortError')return}}
+  download(b.name,b.text);toast('تم تنزيل الملف — ابعته على واتساب أو الإيميل','fa-file-export',5000)}
+function okOp(o){if(!o||!UUID.test(o.id)||!UUID.test(o.customer_id)||!UUID.test(o.device_id)||!TYPES.includes(o.type)||!(Date.parse(o.client_created_at)>0))return false;
+  if((o.type==='debt'||o.type==='payment'||o.type==='tx_amend')&&!(+o.amount>0&&+o.amount<1e9&&DATE.test(o.op_date||'')))return false;
+  if((o.type==='tx_amend'||o.type==='tx_void'||o.type==='review_ack')&&!UUID.test(o.target_id||''))return false;
+  if((o.type==='customer_create'||o.type==='customer_update')&&!String(o.name||'').trim())return false;
+  if(o.type==='customer_archive'&&typeof o.flag!=='boolean')return false;return true}
+async function readBackup(text){const d=JSON.parse(text);if(!d||d.app!=='dyoon'||!Array.isArray(d.ops)||d.ops.length!==d.count)throw new Error('format');
+  const sum=await sha(JSON.stringify(d.ops));if(d.sha256&&sum&&d.sha256!==sum)throw new Error('checksum');if(!d.ops.every(okOp))throw new Error('invalid');
+  const fresh=[];let have=0,diff=0;for(const o of d.ops){const ex=OPS.get(o.id);if(!ex)fresh.push(o);else if(sameOp(ex,o))have++;else diff++}return{fresh,have,diff}}
+const asLocal=o=>({...wire(o),ord:Date.parse(o.client_created_at)*1000,sync:'pending',tries:0,err:null});
+
+/* ----- شاشات الحالة والمراجعة وكود الدكان ----- */
+function menuSheet(){const p=pend0().length;sheet(`<h4><i style="background:var(--gs);color:var(--g)" class="fa-solid fa-sliders"></i>خيارات</h4>
+  <button class="opt" id="syncB"><i class="fa-solid fa-rotate"></i>حالة المزامنة${p?' ('+nf.format(p)+' معلّقة)':''}</button>
+  <button class="opt" id="shareB"><i class="fa-solid fa-share-nodes"></i>إرسال نسخة بالعمليات غير المرفوعة</button>
+  <button class="opt" id="exp"><i class="fa-solid fa-cloud-arrow-down"></i>نسخة كاملة (تنزيل ملف)</button>
+  <button class="opt" id="imp"><i class="fa-solid fa-cloud-arrow-up"></i>استرجاع نسخة احتياطية</button>`)}
+function syncSheet(){const P=pend0(),p=P.length,er=errs().length,cf=db.conf.length,old=p?Math.min(...P.map(o=>Date.parse(o.client_created_at))):0;
+  sheet(`<h4><i style="background:var(--gs);color:var(--g)" class="fa-solid fa-rotate"></i>حالة المزامنة</h4>
+  <div class="kv"><span>عمليات لم تُرفع</span><b>${nf.format(p)}${p?' · أقدمها '+ago(old):''}</b></div>
+  <div class="kv"><span>آخر مزامنة ناجحة</span><b>${META.last?ago(META.last):'لم تتم بعد'}</b></div>
+  <div class="kv"><span>عمليات فيها خطأ</span><b>${nf.format(er)}</b></div>
+  <div class="kv"><span>تحتاج مراجعة</span><b>${nf.format(cf)}</b></div>
+  ${!SB_ON?'<p class="hint">المزامنة غير مفعّلة: رابط Supabase لم يُضبط داخل الملف.</p>':!META.code?'<p class="hint">الموبايل غير مربوط بالدكان — أدخل الكود.</p>':ST.codeBad?'<p class="hint">الكود غير صحيح.</p>':ST.err?`<p class="hint">آخر خطأ: ${esc(ST.err)}</p>`:''}
+  ${META.persisted===false?'<p class="hint">المتصفح لم يثبّت التخزين. استخدم التطبيق من أيقونة الشاشة الرئيسية.</p>':''}
+  <button class="opt" id="syncNow"><i class="fa-solid fa-rotate"></i>مزامنة الآن</button>
+  ${er||cf?`<button class="opt" id="revB"><i class="fa-solid fa-clipboard-check"></i>مراجعة (${nf.format(er+cf)})</button>`:''}
+  <button class="opt" id="shareB"><i class="fa-solid fa-share-nodes"></i>إرسال نسخة بالعمليات غير المرفوعة</button>
+  <button class="opt" id="codeB"><i class="fa-solid fa-key"></i>كود الدكان واسم الموبايل</button>`)}
+function reviewSheet(){const E=errs(),C=db.conf;
+  sheet(`<h4><i style="background:var(--rs);color:var(--r)" class="fa-solid fa-clipboard-check"></i>للمراجعة</h4>
+  <p class="hint">مفيش حاجة اتحذفت — كل النسخ محفوظة في سجل المعاملة.</p>
+  ${C.map(({t,c})=>`<div class="kv"><span>${esc(c.name)}<br>${t.voided?'اتلغت على موبايل واتعدلت على آخر':'اتعدلت من موبايلين — الساري هو الأحدث'}</span><b>${money(t.amount)}<button class="mini" data-ack="${esc(t.id)}" data-cid="${esc(c.id)}">تمت المراجعة</button></b></div>`).join('')}
+  ${E.map(o=>`<div class="kv"><span>عملية لم تُقبل: ${esc(o.err||'')}</span><b><button class="mini" data-retry="${esc(o.id)}">إعادة المحاولة</button></b></div>`).join('')}
+  ${C.length||E.length?'':'<p class="hint">مفيش حاجة للمراجعة.</p>'}`)}
+async function retryErr(id){await mark([OPS.get(id)].filter(Boolean),{sync:'pending',err:null});rebuild();refresh();sync('retry');reviewSheet()}
+function codeSheet(){sheet(`<h4><i style="background:var(--gs);color:var(--g)" class="fa-solid fa-key"></i>ربط الموبايل بالدكان</h4>
+  <form id="codef"><label class="fl"><span>كود الدكان</span><input class="in" name="code" value="${esc(META.code||'')}" placeholder="الكود المحدد في Supabase" required autocomplete="off" autocapitalize="off"></label>
+  <label class="fl"><span>اسم الموبايل (مثال: موبايل أحمد)</span><input class="in" name="dn" value="${esc(META.dname||'')}" autocomplete="off"></label>
+  <button class="go g">حفظ وربط</button></form>`)}
+
 let tab='owe',q='',cur=null,pend=null,shown={total:0,paid:0,cred:0};
 
 function countUp(el,to,key,html){const from=shown[key],t0=performance.now();
   (function f(t){const p=Math.min((t-t0)/700,1),e=1-Math.pow(1-p,4),v=from+(to-from)*e;el.innerHTML=html?money(v):nf.format(v);if(p<1)requestAnimationFrame(f)})(t0);shown[key]=to}
 
-function home(){
+function home(){refresh();
   const owe=db.c.filter(c=>bal(c)>.001),total=owe.reduce((s,c)=>s+bal(c),0);
   const paid=db.c.reduce((s,c)=>s+c.tx.filter(t=>t.type==='pay').reduce((a,t)=>a+t.amount,0),0);
   countUp($('#total'),total,'total',1);countUp($('#paid'),paid,'paid');const cred=db.c.reduce((s,c)=>s+(bal(c)<-.001?-bal(c):0),0);countUp($('#cred'),cred,'cred');$('#cnt').textContent=nf.format(owe.length);
@@ -262,11 +435,11 @@ function home(){
 
 function detail(){
   const c=db.c.find(x=>x.id===cur);if(!c)return;const b=bal(c),TD=c.tx.filter(t=>t.type==='debt').reduce((a,t)=>a+t.amount,0),TP=c.tx.filter(t=>t.type==='pay').reduce((a,t)=>a+t.amount,0),pct=TD>0?Math.min(100,Math.round(TP/TD*100)):0,st=b>.001?'owe':b<-.001?'cr':'ok';
-  let run=0;const rows=[...c.tx].sort((a,b)=>a.date.localeCompare(b.date)||a.ts-b.ts).map(t=>(run+=t.type==='debt'?t.amount:-t.amount,{...t,run})).reverse();
+  let run=0;const rows=[...c.tx,...c.vx].sort((a,b)=>a.date.localeCompare(b.date)||a.ts-b.ts).map(t=>(t.voided||(run+=t.type==='debt'?t.amount:-t.amount),{...t,run})).reverse();
   let last='',tl=rows.map((t,i)=>{const h=t.date!==last?`<div class="dt">${dateL(t.date)}</div>`:'';last=t.date;const d=t.type==='debt';
-    return h+`<div class="tx" style="animation-delay:${Math.min(i,8)*35}ms"><div class="ti ${t.type}"><i class="fa-solid ${d?'fa-bag-shopping':'fa-hand-holding-dollar'}"></i></div>
-    <div class="tb"><b>${d?'اتداين بمبلغ':'دفع من الدين'}${t.edited?'<em>معدّلة</em>':''}</b>${t.note?`<p><i class="fa-regular fa-note-sticky"></i> ${esc(t.note)}</p>`:''}</div>
-    <div class="ta"><strong class="${t.type}">${d?'+':'−'}${money(t.amount)}</strong><span>الرصيد: ${nf.format(t.run)}</span></div>
+    return h+`<div class="tx${t.voided?' vd':''}" style="animation-delay:${Math.min(i,8)*35}ms"><div class="ti ${t.type}"><i class="fa-solid ${d?'fa-bag-shopping':'fa-hand-holding-dollar'}"></i></div>
+    <div class="tb"><b>${d?'اتداين بمبلغ':'دفع من الدين'}${t.voided?'<em class="vo">ملغاة</em>':t.edited?'<em>معدّلة</em>':''}${t.conflict?'<em class="cf">تحتاج مراجعة</em>':''}${t.pend?'<em class="pn">لم تُرفع</em>':''}</b>${t.note?`<p><i class="fa-regular fa-note-sticky"></i> ${esc(t.note)}</p>`:''}</div>
+    <div class="ta"><strong class="${t.type}">${d?'+':'−'}${money(t.amount)}</strong>${t.voided?'':`<span>الرصيد: ${nf.format(t.run)}</span>`}</div>
     <div class="tact"><button class="ed" data-tx-edit="${esc(t.id)}" aria-label="تعديل"><i class="fa-solid fa-pen"></i></button><button class="del" data-tx="${esc(t.id)}" aria-label="حذف"><i class="fa-solid fa-trash-can"></i></button></div></div>`}).join('');
   $('#dwrap').innerHTML=`<div class="dh0"><button class="ib" id="back" aria-label="رجوع"><i class="fa-solid fa-arrow-right"></i></button><button class="ib" id="editC" aria-label="تعديل"><i class="fa-solid fa-pen"></i></button></div>
   <div class="who">${av(c)}<h2>${esc(c.name)}</h2>${c.phone?`<a href="tel:${esc(c.phone)}"><i class="fa-solid fa-phone"></i>${esc(c.phone)}</a>`:''}</div>
@@ -287,12 +460,12 @@ addEventListener('hashchange',()=>{const id=location.hash.slice(1);
 
 function sheet(html,pendFn){$('#sheet').innerHTML='<div class="grab"></div>'+html;pend=pendFn||null;$('#ov').classList.add('show');const f=$('#sheet input.in:not([type=date])');f&&setTimeout(()=>f.focus(),350)}
 const shut=()=>$('#ov').classList.remove('show');
-function toast(m,ic='fa-circle-check'){const t=$('#toast');t.innerHTML=`<i class="fa-solid ${ic}"></i>${m}`;t.classList.add('show');clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove('show'),2200)}
+function toast(m,ic='fa-circle-check',ms=2200){const t=$('#toast');t.innerHTML=`<i class="fa-solid ${ic}"></i>${m}`;t.classList.add('show');clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove('show'),ms)}
 function confirmS(title,msg,fn,yes='نعم، احذف'){sheet(`<h4><i style="background:var(--rs);color:var(--r)" class="fa-solid fa-triangle-exclamation"></i>${title}</h4><p class="msg">${msg}</p><button class="go r" id="yes">${yes}</button><button class="go ghost" data-close>تراجع</button>`,fn)}
 
 function txForm(type,t){const e=!!t;type=e?t.type:type;const d=type==='debt';
   sheet(`<h4><i style="background:var(--${e?'gs':d?'rs':'gs'});color:var(--${e?'g':d?'r':'g'})" class="fa-solid ${e?'fa-pen':d?'fa-bag-shopping':'fa-hand-holding-dollar'}"></i>${e?'تعديل المعاملة':d?'إضافة دين جديد':'تسجيل دفعة'}</h4>
-  <form id="txf" data-type="${type}" data-edit="${e?t.id:''}">${e?`<div class="seg"><label><input type="radio" name="type" value="debt" ${d?'checked':''}><span><i class="fa-solid fa-plus"></i>دين</span></label><label><input type="radio" name="type" value="pay" ${d?'':'checked'}><span><i class="fa-solid fa-minus"></i>دفعة</span></label></div>`:''}
+  <form id="txf" data-type="${type}" data-edit="${e?t.id:''}" data-opid="${uid()}" data-opid2="${uid()}">${e?`<div class="seg"><label><input type="radio" name="type" value="debt" ${d?'checked':''}><span><i class="fa-solid fa-plus"></i>دين</span></label><label><input type="radio" name="type" value="pay" ${d?'':'checked'}><span><i class="fa-solid fa-minus"></i>دفعة</span></label></div>`:''}
   <label class="fl"><span>المبلغ (ج.م)</span><input class="in big" name="a" inputmode="decimal" placeholder="٠" value="${e?t.amount:''}" required autocomplete="off"></label>
   <label class="fl"><span>التاريخ</span><input class="in" type="date" name="d" value="${e?t.date:today()}" max="${today()}" required></label>
   <label class="fl"><span>ملاحظة (اختياري)</span><input class="in" name="n" value="${e?esc(t.note):''}" placeholder="${d?'مثال: سكر وزيت وشاي':'مثال: دفع كاش من الحساب'}" autocomplete="off"></label>
@@ -300,21 +473,27 @@ function txForm(type,t){const e=!!t;type=e?t.type:type;const d=type==='debt';
 
 function custForm(c){const n=!c;
   sheet(`<h4><i style="background:var(--gs);color:var(--g)" class="fa-solid ${n?'fa-user-plus':'fa-user-pen'}"></i>${n?'عميل جديد':'تعديل بيانات العميل'}</h4>
-  <form id="cf" data-id="${c?c.id:''}"><label class="fl"><span>الاسم</span><input class="in" name="name" value="${esc(c&&c.name)}" placeholder="اسم العميل" required autocomplete="off"></label>
+  <form id="cf" data-id="${c?c.id:''}" data-opid="${uid()}" data-opid2="${uid()}"><label class="fl"><span>الاسم</span><input class="in" name="name" value="${esc(c&&c.name)}" placeholder="اسم العميل" required autocomplete="off"></label>
   <label class="fl"><span>رقم الهاتف (اختياري)</span><input class="in" name="phone" type="tel" value="${esc(c&&c.phone)}" placeholder="01xxxxxxxxx" autocomplete="off"></label>
   ${n?`<div class="two"><label class="fl"><span>دين سابق (اختياري)</span><input class="in" name="a" inputmode="decimal" placeholder="٠" autocomplete="off"></label><label class="fl"><span>ملاحظة</span><input class="in" name="n" placeholder="مثال: حساب قديم" autocomplete="off"></label></div>`:''}
-  <button class="go g">${n?'إضافة العميل':'حفظ التعديلات'}</button>${n?'':'<button type="button" class="go danger" id="delC"><i class="fa-solid fa-trash-can"></i> حذف العميل</button>'}</form>`)}
+  <button class="go g">${n?'إضافة العميل':'حفظ التعديلات'}</button>${n?'':'<button type="button" class="go danger" id="delC"><i class="fa-solid fa-box-archive"></i> أرشفة العميل</button>'}</form>`)}
 
-document.addEventListener('submit',e=>{e.preventDefault();const f=e.target,v=Object.fromEntries(new FormData(f));
-  if(f.id==='txf'){const a=toNum(v.a);if(!(a>0))return toast('اكتب مبلغ صحيح','fa-circle-exclamation');
-    const c=db.c.find(x=>x.id===cur),ed=f.dataset.edit;
-    if(ed){Object.assign(c.tx.find(x=>x.id===ed),{type:v.type,amount:a,note:v.n.trim(),date:v.d,edited:true});save();shut();detail();toast('تم تعديل المعاملة','fa-pen')}
-    else{c.tx.push({id:uid(),type:f.dataset.type,amount:a,note:v.n.trim(),date:v.d,ts:Date.now()});save();shut();detail();
-    toast(f.dataset.type==='debt'?'تم تسجيل الدين':'تم خصم الدفعة')}}
-  if(f.id==='cf'){const id=f.dataset.id;
-    if(id){const c=db.c.find(x=>x.id===id);c.name=v.name.trim();c.phone=v.phone.trim();save();shut();detail();toast('تم حفظ التعديلات')}
-    else{const c={id:uid(),name:v.name.trim(),phone:v.phone.trim(),tx:[]},a=toNum(v.a);if(a>0)c.tx.push({id:uid(),type:'debt',amount:a,note:(v.n||'').trim()||'دين سابق',date:today(),ts:Date.now()});
-      db.c.push(c);save();shut();home();toast('تمت إضافة العميل')}}
+document.addEventListener('submit',async e=>{e.preventDefault();const f=e.target,v=Object.fromEntries(new FormData(f)),btn=f.querySelector('.go');
+  if(f.id==='txf'){const a=Math.round(toNum(v.a)*100)/100;if(!(a>0))return toast('اكتب مبلغ صحيح','fa-circle-exclamation');
+    const c=db.c.find(x=>x.id===cur),ed=f.dataset.edit,note=v.n.trim();if(!c)return;let ops;
+    if(ed){const t=c.tx.find(x=>x.id===ed);if(!t)return toast('المعاملة لم تعد موجودة','fa-circle-exclamation');
+      ops=v.type!==t.type?[mk('tx_void',{id:f.dataset.opid,customer_id:c.id,target_id:t.id,base_id:t.head}),mk(T2(v.type),{id:f.dataset.opid2,customer_id:c.id,amount:a,op_date:v.d,note})]
+        :[mk('tx_amend',{id:f.dataset.opid,customer_id:c.id,target_id:t.id,base_id:t.head,amount:a,op_date:v.d,note})]}
+    else ops=[mk(T2(f.dataset.type),{id:f.dataset.opid,customer_id:c.id,amount:a,op_date:v.d,note})];
+    if(await commit(ops,btn)){shut();detail();ed?toast('تم تعديل المعاملة','fa-pen'):toast(f.dataset.type==='debt'?'تم تسجيل الدين':'تم خصم الدفعة')}}
+  if(f.id==='cf'){const id=f.dataset.id,name=v.name.trim(),phone=v.phone.trim();if(!name)return toast('اكتب اسم العميل','fa-circle-exclamation');
+    if(id){if(await commit([mk('customer_update',{id:f.dataset.opid,customer_id:id,name,phone})],btn)){shut();detail();toast('تم حفظ التعديلات')}}
+    else{const dup=db.c.some(c=>c.name.trim()===name||(phone&&c.phone===phone));
+      if(dup&&!f.dataset.dupok){f.dataset.dupok=1;return toast('فيه عميل بنفس الاسم أو الرقم — اضغط تاني لو عايز تضيفه برضه','fa-circle-exclamation',4500)}
+      const cid=f.dataset.opid,a=Math.round(toNum(v.a)*100)/100,ops=[mk('customer_create',{id:cid,customer_id:cid,name,phone})];
+      if(a>0)ops.push(mk('debt',{id:f.dataset.opid2,customer_id:cid,amount:a,op_date:today(),note:(v.n||'').trim()||'دين سابق'}));
+      if(await commit(ops,btn)){shut();home();toast('تمت إضافة العميل')}}}
+  if(f.id==='codef'){await saveMeta('code',v.code.trim());await saveMeta('dname',v.dn.trim());await saveMeta('reg',0);ST.codeBad=false;shut();refresh();sync('code');toast('تم حفظ الكود','fa-key')}
 });
 
 document.addEventListener('click',e=>{const t=e.target.closest('button,.ov');if(!t)return;
@@ -325,23 +504,35 @@ document.addEventListener('click',e=>{const t=e.target.closest('button,.ov');if(
   else if(t.id==='editC')custForm(db.c.find(x=>x.id===cur));
   else if(t.dataset.txNew)txForm(t.dataset.txNew);
   else if(t.dataset.txEdit)txForm(null,db.c.find(x=>x.id===cur).tx.find(x=>x.id===t.dataset.txEdit));
-  else if(t.dataset.tx){const id=t.dataset.tx;confirmS('حذف المعاملة','هيتم حذف المعاملة دي وإعادة حساب الرصيد.',()=>{const c=db.c.find(x=>x.id===cur);c.tx=c.tx.filter(x=>x.id!==id);save();shut();detail();toast('تم حذف المعاملة','fa-trash-can')})}
-  else if(t.id==='delC'){const c=db.c.find(x=>x.id===cur);confirmS('حذف العميل',`هيتم حذف "${esc(c.name)}" وكل معاملاته نهائيًا.`,()=>{db.c=db.c.filter(x=>x.id!==cur);save();shut();$('#detail').classList.remove('open');cur=null;history.replaceState(null,'',location.pathname);home();toast('تم حذف العميل','fa-trash-can')})}
-  else if(t.id==='yes'&&pend)pend();
+  else if(t.dataset.tx){const id=t.dataset.tx;confirmS('إلغاء المعاملة','هتتلغي المعاملة وتفضل ظاهرة في السجل (مشطوبة)، والرصيد هيتحسب من غيرها.',async()=>{const c=db.c.find(x=>x.id===cur),tx=c&&c.tx.find(x=>x.id===id);if(!tx)return;
+    if(await commit([mk('tx_void',{customer_id:c.id,target_id:id,base_id:tx.head})])){shut();detail();toast('تم إلغاء المعاملة','fa-ban')}},'نعم، ألغِها')}
+  else if(t.id==='delC'){const c=db.c.find(x=>x.id===cur);if(!c)return;
+    if(Math.abs(bal(c))>.001){shut();return toast('الرصيد لازم يبقى صفر قبل أرشفة العميل','fa-circle-exclamation',4000)}
+    confirmS('أرشفة العميل',`هيتم إخفاء "${esc(c.name)}" من القائمة، وسجله يفضل محفوظ.`,async()=>{if(await commit([mk('customer_archive',{customer_id:c.id,flag:true})])){shut();$('#detail').classList.remove('open');cur=null;history.replaceState(null,'',location.pathname);home();toast('تمت أرشفة العميل','fa-box-archive')}},'نعم، أرشف')}
+  else if(t.id==='yes'&&pend){const p=pend;pend=null;p()}
   else if(t.dataset.close||t.id==='ov'&&e.target.id==='ov')shut();
-  else if(t.id==='menuBtn')sheet(`<h4><i style="background:var(--gs);color:var(--g)" class="fa-solid fa-sliders"></i>خيارات</h4>
-    <button class="opt" id="exp"><i class="fa-solid fa-cloud-arrow-down"></i>نسخة احتياطية (تنزيل ملف)</button><button class="opt" id="imp"><i class="fa-solid fa-cloud-arrow-up"></i>استرجاع نسخة احتياطية</button>`);
-  else if(t.id==='exp'){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(db)],{type:'application/json'}));a.download=`dyoon-${today()}.json`;a.click();shut();toast('تم تنزيل النسخة')}
+  else if(t.id==='menuBtn')menuSheet();
+  else if(t.id==='syncBtn'||t.id==='syncB')syncSheet();
+  else if(t.id==='syncNow'){sync('manual');toast('جارِ المزامنة','fa-rotate')}
+  else if(t.id==='shareB'||t.id==='nudgeGo')shareBackup('pending');
+  else if(t.id==='exp')exportFull();
   else if(t.id==='imp'){shut();$('#file').click()}
+  else if(t.id==='revB')reviewSheet();
+  else if(t.id==='codeB')codeSheet();
+  else if(t.dataset.ack)commit([mk('review_ack',{customer_id:t.dataset.cid,target_id:t.dataset.ack})]).then(()=>reviewSheet());
+  else if(t.dataset.retry)retryErr(t.dataset.retry);
 });
 $('#file').onchange=async e=>{const f=e.target.files[0];if(!f)return;
-  try{const d=JSON.parse(await f.text());if(!valid(d))throw 0;const n=clean(d);
-    confirmS('استرجاع نسخة احتياطية',`هيتم استبدال الدفتر الحالي بـ ${nf.format(n.c.length)} عميل من الملف.`,()=>{db=n;save();shut();home();toast('تم الاسترجاع')},'نعم، استرجع')}
-  catch(x){toast('ملف غير صالح','fa-circle-exclamation')}e.target.value=''};
+  try{const r=await readBackup(await f.text());
+    confirmS('استرجاع نسخة احتياطية',`${nf.format(r.fresh.length)} عملية جديدة هتتضاف، و${nf.format(r.have)} موجودة بالفعل.${r.diff?` ${nf.format(r.diff)} بمحتوى مختلف هتتجاهل.`:''} الدفتر الحالي مش هيتمسح.`,async()=>{if(await commit(r.fresh.map(asLocal))){shut();rerender();toast('تم الاسترجاع')}},'نعم، استرجع')}
+  catch(x){toast(x&&x.message==='checksum'?'الملف تالف: فشل التحقق من سلامته':'ملف غير صالح','fa-circle-exclamation',4000)}e.target.value=''};
 $('#q').oninput=e=>{q=e.target.value;home()};
-home();if(location.hash&&db.c.some(c=>c.id===location.hash.slice(1)))openC(location.hash.slice(1));
+home();
+(async()=>{await boot();rebuild();home();if(location.hash&&db.c.some(c=>c.id===location.hash.slice(1)))openC(location.hash.slice(1));
+  if(!DBOK)toast('التخزين على الجهاز غير متاح — لا تسجّل عمليات','fa-circle-exclamation',6000);
+  if(navigator.storage&&navigator.storage.persist)navigator.storage.persist().then(p=>saveMeta('persisted',!!p)).catch(()=>{});
+  refresh();if(SB_ON&&DBOK){if(!META.code)setTimeout(codeSheet,700);else sync('open')}})();
 if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) { window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js').catch(err => console.warn('Service worker registration failed', err))); }
-if(bad)toast('تعذّر قراءة البيانات المحفوظة، تم الاحتفاظ بنسخة منها','fa-circle-exclamation');
 addEventListener('keydown',e=>{if(e.key==='Escape'&&$('#ov').classList.contains('show'))shut()});
 </script>
 </body>
