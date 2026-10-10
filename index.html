@@ -191,6 +191,11 @@ background:radial-gradient(120% 100% at 100% 0,#2f9467 0,transparent 58%),linear
 .msg{color:var(--mut);line-height:1.8;margin:-6px 0 16px}
 .opt{display:flex;align-items:center;gap:12px;width:100%;padding:15px;border-radius:16px;background:#f6f5ee;font-weight:700;margin-bottom:10px;text-align:right}
 .opt i{width:36px;text-align:center;color:var(--g)}
+.alist{display:flex;flex-direction:column;gap:10px;max-height:55vh;overflow-y:auto;margin-top:6px}
+.arow{display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:18px;background:#f6f5ee;transition:background .2s}
+.arow .rb{flex:1;min-width:0}.arow .rb b{display:block;font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.arow .rb span{display:block;font-size:12px;opacity:.6;margin-top:2px}
+.rst{display:inline-flex;align-items:center;gap:6px;padding:9px 14px;border-radius:12px;background:var(--gs);color:var(--g);font-weight:800;font-size:13px;white-space:nowrap;transition:transform .15s,opacity .2s}
+.rst:active{transform:scale(.94)}.rst:disabled{opacity:.5}
 
 .toast{position:fixed;top:calc(env(safe-area-inset-top) + 16px);left:50%;transform:translate(-50%,-90px);z-index:60;background:#16241c;color:#fff;padding:12px 20px;border-radius:16px;font-weight:700;font-size:14px;display:flex;gap:9px;align-items:center;transition:transform .5s var(--ease);box-shadow:0 14px 30px -8px rgba(0,0,0,.4)}
 .toast.show{transform:translate(-50%,0)}.toast i{color:#6fd3a0}
@@ -395,7 +400,7 @@ function rebuild(){const ops=[...OPS.values()].sort(cmp),C=new Map(),T=new Map()
     else if(o.type==='review_ack'){t.conflict=false;t.pend=t.pend||o.sync!=='synced'}}
   NEEDS=needsOf(ops);const all=[...C.values()];
   for(const t of T.values()){let c=C.get(t.cid);if(!c){c={id:t.cid,name:'عميل غير مكتمل',phone:'',archived:false,tx:[],vx:[]};C.set(t.cid,c);all.push(c)}(t.voided?c.vx:c.tx).push(t)}
-  db={c:all.filter(c=>!c.archived||Math.abs(bal(c))>.001),conf:[...T.values()].filter(t=>t.conflict).map(t=>({t,c:C.get(t.cid)}))}}
+  db={arch:all.filter(c=>c.archived&&Math.abs(bal(c))<=.001),c:all.filter(c=>!c.archived||Math.abs(bal(c))>.001),conf:[...T.values()].filter(t=>t.conflict).map(t=>({t,c:C.get(t.cid)}))}}
 function rerender(){if(cur&&db.c.some(c=>c.id===cur))detail();home();renderN()}
 function refresh(){renderSync();renderNudge();renderNB()}
 
@@ -479,10 +484,14 @@ const asLocal=o=>({...wire(o),ord:Date.parse(o.client_created_at)*1000,sync:'pen
 
 /* ----- شاشات الحالة والمراجعة وكود المحل ----- */
 function menuSheet(){const p=pend0().length;sheet(`<h4><i style="background:var(--gs);color:var(--g)" class="fa-solid fa-sliders"></i>خيارات</h4>
+  <button class="opt" id="archB"><i class="fa-solid fa-box-archive"></i>العملاء المؤرشفون${db.arch.length?' ('+nf.format(db.arch.length)+')':''}</button>
   <button class="opt" id="syncB"><i class="fa-solid fa-rotate"></i>حالة المزامنة${p?' ('+nf.format(p)+' معلّقة)':''}</button>
   <button class="opt" id="shareB"><i class="fa-solid fa-share-nodes"></i>إرسال نسخة بالعمليات غير المرفوعة</button>
   <button class="opt" id="exp"><i class="fa-solid fa-cloud-arrow-down"></i>نسخة كاملة (تنزيل ملف)</button>
   <button class="opt" id="imp"><i class="fa-solid fa-cloud-arrow-up"></i>استرجاع نسخة احتياطية</button>`)}
+function archSheet(){const L=[...db.arch].sort((a,b)=>a.name.localeCompare(b.name,'ar'));
+  sheet(`<h4><i style="background:var(--gs);color:var(--g)" class="fa-solid fa-box-archive"></i>العملاء المؤرشفون</h4>
+  ${L.length?`<p class="hint">سجلاتهم محفوظة بالكامل — الاسترجاع بيرجّعهم للقائمة بكل معاملاتهم.</p><div class="alist">${L.map(c=>`<div class="arow">${av(c)}<div class="rb"><b>${esc(c.name)}</b><span>${c.phone?esc(c.phone):'بدون رقم'} · ${nf.format(c.tx.length)} معاملة</span></div><button class="rst" data-restore="${esc(c.id)}"><i class="fa-solid fa-rotate-left"></i>استرجاع</button></div>`).join('')}</div>`:'<div class="empty"><i class="fa-solid fa-box-open"></i><b>لا يوجد عملاء مؤرشفون</b>أي عميل تؤرشفه هيظهر هنا</div>'}`)}
 function syncSheet(){const P=pend0(),p=P.length,er=errs().length,cf=db.conf.length,old=p?Math.min(...P.map(o=>Date.parse(o.client_created_at))):0;
   sheet(`<h4><i style="background:var(--gs);color:var(--g)" class="fa-solid fa-rotate"></i>حالة المزامنة</h4>
   <div class="kv"><span>عمليات لم تُرفع</span><b>${nf.format(p)}${p?' · أقدمها '+ago(old):''}</b></div>
@@ -670,6 +679,8 @@ document.addEventListener('click',e=>{const t=e.target.closest('button,.ov');if(
   else if(t.id==='nClear'){const n=nL().filter(x=>x.done).length;if(!n)return;
     confirmS('مسح المشتريات',`هيتشال ${nf.format(n)} صنف اتجابوا من القائمة (وتفضل محفوظة في السجل).`,async()=>{if(await nCommit(nL().filter(x=>x.done).map(x=>mk('need_delete',{target_id:x.id})))){shut();toast('تم مسح المشتريات','fa-broom')}},'نعم، امسح')}
   else if(t.id==='menuBtn')menuSheet();
+  else if(t.id==='archB')archSheet();
+  else if(t.dataset.restore){const id=t.dataset.restore;t.disabled=true;commit([mk('customer_archive',{customer_id:id,flag:false})]).then(ok=>{if(!ok){t.disabled=false;return}home();db.arch.length?archSheet():shut();toast('تم استرجاع العميل','fa-rotate-left')})}
   else if(t.id==='syncBtn'||t.id==='syncB')syncSheet();
   else if(t.id==='syncNow'){sync('manual');toast('جارِ المزامنة','fa-rotate')}
   else if(t.id==='shareB'||t.id==='nudgeGo')shareBackup('pending');
