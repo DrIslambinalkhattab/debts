@@ -1,4 +1,4 @@
-const P = 'beit-alward-', V = P + 'v3'; // البادئة تحمي كاشات أي تطبيق آخر على نفس الدومين
+const P = 'beit-alward-', V = P + 'v4'; // البادئة تحمي كاشات أي تطبيق آخر على نفس الدومين
 const SHELL = ['./', './index.html', './manifest.webmanifest', './icons/icon-192.png', './icons/icon-512.png'];
 const CDN = ['fonts.googleapis.com', 'fonts.gstatic.com', 'cdnjs.cloudflare.com']; // خطوط وأيقونات: تُخزَّن عند أول زيارة بنت
 self.addEventListener('install', e => {
