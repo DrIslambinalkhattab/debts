@@ -4,6 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#134d33">
+<meta name="apple-mobile-web-app-title" content="بيت الورد">
+<meta name="description" content="دفتر حسابات ونواقص بيت الورد — ورد وأنتيكات وخرز وخيط وتغليف هدايا">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="icons/icon-192.png">
 <title>بيت الورد</title>
@@ -259,13 +261,28 @@ background:radial-gradient(120% 100% at 100% 0,#2f9467 0,transparent 58%),linear
 @media(max-width:370px){.brand{font-size:16px;gap:8px}.brand i{width:34px;height:34px}.sync{padding:0 9px;font-size:11.5px}}
 @media(prefers-reduced-motion:reduce){*{animation:none!important;transition-duration:.01s!important}}
 .by,.by2{font-size:11.5px;color:var(--mut);font-weight:500}.by{margin-top:3px}.by.c{margin-top:8px}.by i,.by2 i{margin-left:4px;font-size:10px;opacity:.8}
+
+/* ===== هوية بيت الورد: ورد · أنتيكات · هدايا ===== */
+:root{--rose:#c46a7e;--rose2:#a84d63;--rose-s:#f9e9ed;--gold:#b8935a;--gold-s:#f6eddc}
+.hero{background:radial-gradient(70% 60% at 0 100%,rgba(222,128,148,.30),transparent 62%),radial-gradient(120% 90% at 100% 0,#2a8a5e 0,transparent 55%),linear-gradient(160deg,#1d6b47,#0f3f2a)}
+.hero:after{border-color:rgba(240,190,200,.14)}
+.brand i{background:linear-gradient(145deg,rgba(255,255,255,.22),rgba(255,255,255,.08));color:#ffd9e0;box-shadow:inset 0 0 0 1px rgba(255,255,255,.16)}
+.brand .bt{display:flex;flex-direction:column;line-height:1.15}
+.brand .bt em{font-style:normal;font-weight:500;font-size:11px;letter-spacing:.04em;color:rgba(255,255,255,.66);margin-top:3px}
+.empty i{color:#e6c9d0}
+.chips{display:flex;gap:8px;overflow-x:auto;padding:12px 18px 2px;scrollbar-width:none}
+.chips::-webkit-scrollbar{display:none}
+.chips button{flex:none;display:flex;align-items:center;gap:7px;height:36px;padding:0 14px;border-radius:12px;background:var(--card);border:1px solid var(--line);font-size:13px;font-weight:700;color:var(--mut);transition:.25s var(--ease)}
+.chips button i{font-size:11.5px;color:var(--rose)}
+.chips button:hover{border-color:var(--rose);color:var(--rose2)}
+.chips button:active{transform:scale(.94);background:var(--rose-s);border-color:var(--rose);color:var(--rose2)}
 </style>
 </head>
 <body>
 <div id="app">
   <header class="hero">
     <div class="bar">
-      <div class="brand"><i class="fa-solid fa-basket-shopping"></i>بيت الورد</div>
+      <div class="brand"><i class="fa-solid fa-spa"></i><span class="bt">بيت الورد<em>ورد · أنتيكات · هدايا</em></span></div>
       <div class="r"><button class="sync off" id="syncBtn" aria-label="حالة المزامنة"></button><button class="ib nbtn" id="needsBtn" aria-label="قائمة النواقص"><i class="fa-solid fa-list-check"></i><b class="nb hide" id="nbBadge"></b></button><button class="ib" id="menuBtn" aria-label="خيارات"><i class="fa-solid fa-ellipsis"></i></button></div>
     </div>
     <div class="total"><p>إجمالي المبالغ المستحقة لك</p><h1 id="total">٠<small>ج.م</small></h1></div>
@@ -288,7 +305,8 @@ background:radial-gradient(120% 100% at 100% 0,#2f9467 0,transparent 58%),linear
 <section class="detail" id="needs" aria-label="قائمة النواقص"><div class="dwrap">
   <div class="dh0 nh"><button class="ib" id="nback" aria-label="رجوع"><i class="fa-solid fa-arrow-right"></i></button><b class="nttl">قائمة النواقص</b><button class="ib" id="nshare" aria-label="إرسال القائمة"><i class="fa-solid fa-share-nodes"></i></button></div>
   <div id="nsum"></div>
-  <form class="qa" id="nqa" autocomplete="off"><input name="n" placeholder="اكتب صنف ناقص واضغط إضافة" enterkeyhint="done" aria-label="اسم الصنف" maxlength="80"><button type="button" class="qm" id="nmore" aria-label="إضافة بتفاصيل"><i class="fa-solid fa-sliders"></i></button><button class="qs" aria-label="إضافة"><i class="fa-solid fa-plus"></i></button></form>
+  <form class="qa" id="nqa" autocomplete="off"><input name="n" placeholder="اكتب صنف ناقص: ورد، خرز، خيط..." enterkeyhint="done" aria-label="اسم الصنف" maxlength="80"><button type="button" class="qm" id="nmore" aria-label="إضافة بتفاصيل"><i class="fa-solid fa-sliders"></i></button><button class="qs" aria-label="إضافة"><i class="fa-solid fa-plus"></i></button></form>
+  <div class="chips" id="nchips"><button type="button" data-chip="ورد "><i class="fa-solid fa-spa"></i>ورد</button><button type="button" data-chip="خرز "><i class="fa-solid fa-gem"></i>خرز</button><button type="button" data-chip="خيط "><i class="fa-solid fa-ribbon"></i>خيط</button><button type="button" data-chip="ورق تغليف "><i class="fa-solid fa-gift"></i>ورق تغليف</button><button type="button" data-chip="شرايط "><i class="fa-solid fa-ribbon"></i>شرايط</button><button type="button" data-chip="أنتيكات "><i class="fa-solid fa-hourglass-half"></i>أنتيكات</button></div>
   <div class="ntabs" id="ntabs" data-v="todo"></div>
   <div class="nl" id="nlist"></div>
 </div></section>
@@ -416,7 +434,7 @@ async function sync(why){
       rows.forEach(x=>{after=Math.max(after,x.seq);if(!max||Date.parse(x.received_at)>Date.parse(max))max=x.received_at});
       if(!r.has_more)break}
     await saveMeta('cursor',max);await saveMeta('last',Date.now());ST.fails=0;ST.err=''}
-  catch(e){if(e&&e.message==='invalid_code'){ST.codeBad=true;ST.err='كود الدكان غير صحيح'}else if(e&&e.offline){ST.err=''}else{ST.fails++;ST.err=(e&&e.message)||'خطأ غير معروف'}}
+  catch(e){if(e&&e.message==='invalid_code'){ST.codeBad=true;ST.err='كود المحل غير صحيح'}else if(e&&e.offline){ST.err=''}else{ST.fails++;ST.err=(e&&e.message)||'خطأ غير معروف'}}
   finally{syncing=false;ST.busy=false;refresh();if(again){again=false;setTimeout(()=>sync('again'),300)}}}
 const tick=()=>{if(!SB_ON||!DBOK||document.hidden)return;if(pend0().length||Date.now()-ST.lastTry>12e4)sync('tick');refresh()};
 setInterval(tick,30000);
@@ -459,7 +477,7 @@ async function readBackup(text){const d=JSON.parse(text);if(!d||d.app!=='dyoon'|
   const fresh=[];let have=0,diff=0;for(const o of d.ops){const ex=OPS.get(o.id);if(!ex)fresh.push(o);else if(sameOp(ex,o))have++;else diff++}return{fresh,have,diff}}
 const asLocal=o=>({...wire(o),ord:Date.parse(o.client_created_at)*1000,sync:'pending',tries:0,err:null});
 
-/* ----- شاشات الحالة والمراجعة وكود الدكان ----- */
+/* ----- شاشات الحالة والمراجعة وكود المحل ----- */
 function menuSheet(){const p=pend0().length;sheet(`<h4><i style="background:var(--gs);color:var(--g)" class="fa-solid fa-sliders"></i>خيارات</h4>
   <button class="opt" id="syncB"><i class="fa-solid fa-rotate"></i>حالة المزامنة${p?' ('+nf.format(p)+' معلّقة)':''}</button>
   <button class="opt" id="shareB"><i class="fa-solid fa-share-nodes"></i>إرسال نسخة بالعمليات غير المرفوعة</button>
@@ -471,12 +489,12 @@ function syncSheet(){const P=pend0(),p=P.length,er=errs().length,cf=db.conf.leng
   <div class="kv"><span>آخر مزامنة ناجحة</span><b>${META.last?ago(META.last):'لم تتم بعد'}</b></div>
   <div class="kv"><span>عمليات فيها خطأ</span><b>${nf.format(er)}</b></div>
   <div class="kv"><span>تحتاج مراجعة</span><b>${nf.format(cf)}</b></div>
-  ${!SB_ON?'<p class="hint">المزامنة غير مفعّلة: رابط Supabase لم يُضبط داخل الملف.</p>':!META.code?'<p class="hint">الموبايل غير مربوط بالدكان — أدخل الكود.</p>':ST.codeBad?'<p class="hint">الكود غير صحيح.</p>':ST.err?`<p class="hint">آخر خطأ: ${esc(ST.err)}</p>`:''}
+  ${!SB_ON?'<p class="hint">المزامنة غير مفعّلة: رابط Supabase لم يُضبط داخل الملف.</p>':!META.code?'<p class="hint">الموبايل غير مربوط بالمحل — أدخل الكود.</p>':ST.codeBad?'<p class="hint">الكود غير صحيح.</p>':ST.err?`<p class="hint">آخر خطأ: ${esc(ST.err)}</p>`:''}
   ${META.persisted===false?'<p class="hint">المتصفح لم يثبّت التخزين. استخدم التطبيق من أيقونة الشاشة الرئيسية.</p>':''}
   <button class="opt" id="syncNow"><i class="fa-solid fa-rotate"></i>مزامنة الآن</button>
   ${er||cf?`<button class="opt" id="revB"><i class="fa-solid fa-clipboard-check"></i>مراجعة (${nf.format(er+cf)})</button>`:''}
   <button class="opt" id="shareB"><i class="fa-solid fa-share-nodes"></i>إرسال نسخة بالعمليات غير المرفوعة</button>
-  <button class="opt" id="codeB"><i class="fa-solid fa-key"></i>كود الدكان واسم الموبايل</button>`)}
+  <button class="opt" id="codeB"><i class="fa-solid fa-key"></i>كود المحل واسم الموبايل</button>`)}
 function reviewSheet(){const E=errs(),C=db.conf;
   sheet(`<h4><i style="background:var(--rs);color:var(--r)" class="fa-solid fa-clipboard-check"></i>للمراجعة</h4>
   <p class="hint">مفيش حاجة اتحذفت — كل النسخ محفوظة في سجل المعاملة.</p>
@@ -484,8 +502,8 @@ function reviewSheet(){const E=errs(),C=db.conf;
   ${E.map(o=>`<div class="kv"><span>عملية لم تُقبل: ${esc(o.err||'')}</span><b><button class="mini" data-retry="${esc(o.id)}">إعادة المحاولة</button></b></div>`).join('')}
   ${C.length||E.length?'':'<p class="hint">مفيش حاجة للمراجعة.</p>'}`)}
 async function retryErr(id){await mark([OPS.get(id)].filter(Boolean),{sync:'pending',err:null});rebuild();refresh();sync('retry');reviewSheet()}
-function codeSheet(){sheet(`<h4><i style="background:var(--gs);color:var(--g)" class="fa-solid fa-key"></i>ربط الموبايل بالدكان</h4>
-  <form id="codef"><label class="fl"><span>كود الدكان</span><input class="in" name="code" value="${esc(META.code||'')}" placeholder="الكود المحدد في Supabase" required autocomplete="off" autocapitalize="off"></label>
+function codeSheet(){sheet(`<h4><i style="background:var(--gs);color:var(--g)" class="fa-solid fa-key"></i>ربط الموبايل بالمحل</h4>
+  <form id="codef"><label class="fl"><span>كود المحل</span><input class="in" name="code" value="${esc(META.code||'')}" placeholder="الكود المحدد في Supabase" required autocomplete="off" autocapitalize="off"></label>
   <label class="fl"><span>اسمك (هيتسجّل مع كل عملية بتعملها)</span><input class="in" name="dn" value="${esc(META.dname||'')}" placeholder="مثال: أحمد" required maxlength="40" autocomplete="off"></label>
   <button class="go g">حفظ وربط</button></form>`)}
 
@@ -530,8 +548,8 @@ async function nShare(){const L=nL().filter(x=>!x.done).sort(nSort);if(!L.length
   try{await navigator.clipboard.writeText(txt);toast('تم نسخ القائمة','fa-copy')}catch(e){toast('تعذّر مشاركة القائمة','fa-circle-exclamation')}}
 function needForm(it,pre){const n=!it;
   sheet(`<h4><i style="background:var(--gs);color:var(--g)" class="fa-solid ${n?'fa-list-check':'fa-pen'}"></i>${n?'صنف ناقص جديد':'تعديل الصنف'}</h4>
-  <form id="nfm" data-id="${it?esc(it.id):''}" data-opid="${uid()}"><label class="fl"><span>الصنف</span><input class="in" name="name" value="${esc(it?it.name:pre)}" placeholder="مثال: سكر" required maxlength="80" autocomplete="off"></label>
-  <div class="two"><label class="fl"><span>الكمية (اختياري)</span><input class="in" name="qty" maxlength="80" value="${esc(it&&it.qty)}" placeholder="مثال: ٣ كيلو" autocomplete="off"></label><label class="fl"><span>ملاحظة (اختياري)</span><input class="in" name="note" maxlength="300" value="${esc(it&&it.note)}" placeholder="مثال: ماركة معيّنة" autocomplete="off"></label></div>
+  <form id="nfm" data-id="${it?esc(it.id):''}" data-opid="${uid()}"><label class="fl"><span>الصنف</span><input class="in" name="name" value="${esc(it?it.name:pre)}" placeholder="مثال: ورد جوري أحمر" required maxlength="80" autocomplete="off"></label>
+  <div class="two"><label class="fl"><span>الكمية (اختياري)</span><input class="in" name="qty" maxlength="80" value="${esc(it&&it.qty)}" placeholder="مثال: ٣ دستة" autocomplete="off"></label><label class="fl"><span>ملاحظة (اختياري)</span><input class="in" name="note" maxlength="300" value="${esc(it&&it.note)}" placeholder="مثال: ماركة معيّنة" autocomplete="off"></label></div>
   <label class="sw"><span><i class="fa-solid fa-bolt"></i>عاجل — محتاجه بأسرع وقت</span><input type="checkbox" name="urgent" ${it&&it.urgent?'checked':''}><b></b></label>
   <button class="go g">${n?'إضافة للقائمة':'حفظ التعديل'}</button>${n?'':'<button type="button" class="go danger" id="nDel"><i class="fa-solid fa-trash-can"></i> حذف الصنف</button>'}</form>`)}
 
@@ -557,7 +575,7 @@ function detail(){
   const c=db.c.find(x=>x.id===cur);if(!c)return;const b=bal(c),TD=c.tx.filter(t=>t.type==='debt').reduce((a,t)=>a+t.amount,0),TP=c.tx.filter(t=>t.type==='pay').reduce((a,t)=>a+t.amount,0),pct=TD>0?Math.min(100,Math.round(TP/TD*100)):0,st=b>.001?'owe':b<-.001?'cr':'ok';
   let run=0;const rows=[...c.tx,...c.vx].sort((a,b)=>a.date.localeCompare(b.date)||a.ts-b.ts).map(t=>(t.voided||(run+=t.type==='debt'?t.amount:-t.amount),{...t,run})).reverse();
   let last='',tl=rows.map((t,i)=>{const h=t.date!==last?`<div class="dt">${dateL(t.date)}</div>`:'';last=t.date;const d=t.type==='debt';
-    return h+`<div class="tx${t.voided?' vd':''}" style="animation-delay:${Math.min(i,8)*35}ms"><div class="ti ${t.type}"><i class="fa-solid ${d?'fa-bag-shopping':'fa-hand-holding-dollar'}"></i></div>
+    return h+`<div class="tx${t.voided?' vd':''}" style="animation-delay:${Math.min(i,8)*35}ms"><div class="ti ${t.type}"><i class="fa-solid ${d?'fa-gift':'fa-hand-holding-dollar'}"></i></div>
     <div class="tb"><b>${d?'اتداين بمبلغ':'دفع من الدين'}${t.voided?'<em class="vo">ملغاة</em>':t.edited?'<em>معدّلة</em>':''}${t.conflict?'<em class="cf">تحتاج مراجعة</em>':''}${t.pend?'<em class="pn">لم تُرفع</em>':''}</b>${t.note?`<p><i class="fa-regular fa-note-sticky"></i> ${esc(t.note)}</p>`:''}${byL(t)}</div>
     <div class="ta"><strong class="${t.type}">${d?'+':'−'}${money(t.amount)}</strong>${t.voided?'':`<span>الرصيد: ${nf.format(t.run)}</span>`}</div>
     <div class="tact"><button class="ed" data-tx-edit="${esc(t.id)}" aria-label="تعديل"><i class="fa-solid fa-pen"></i></button><button class="del" data-tx="${esc(t.id)}" aria-label="حذف"><i class="fa-solid fa-trash-can"></i></button></div></div>`}).join('');
@@ -585,11 +603,11 @@ function toast(m,ic='fa-circle-check',ms=2200){const t=$('#toast');t.innerHTML=`
 function confirmS(title,msg,fn,yes='نعم، احذف'){sheet(`<h4><i style="background:var(--rs);color:var(--r)" class="fa-solid fa-triangle-exclamation"></i>${title}</h4><p class="msg">${msg}</p><button class="go r" id="yes">${yes}</button><button class="go ghost" data-close>تراجع</button>`,fn)}
 
 function txForm(type,t){const e=!!t;type=e?t.type:type;const d=type==='debt';
-  sheet(`<h4><i style="background:var(--${e?'gs':d?'rs':'gs'});color:var(--${e?'g':d?'r':'g'})" class="fa-solid ${e?'fa-pen':d?'fa-bag-shopping':'fa-hand-holding-dollar'}"></i>${e?'تعديل المعاملة':d?'إضافة دين جديد':'تسجيل دفعة'}</h4>
+  sheet(`<h4><i style="background:var(--${e?'gs':d?'rs':'gs'});color:var(--${e?'g':d?'r':'g'})" class="fa-solid ${e?'fa-pen':d?'fa-gift':'fa-hand-holding-dollar'}"></i>${e?'تعديل المعاملة':d?'إضافة دين جديد':'تسجيل دفعة'}</h4>
   <form id="txf" data-type="${type}" data-edit="${e?t.id:''}" data-opid="${uid()}" data-opid2="${uid()}">${e?`<div class="seg"><label><input type="radio" name="type" value="debt" ${d?'checked':''}><span><i class="fa-solid fa-plus"></i>دين</span></label><label><input type="radio" name="type" value="pay" ${d?'':'checked'}><span><i class="fa-solid fa-minus"></i>دفعة</span></label></div>`:''}
   <label class="fl"><span>المبلغ (ج.م)</span><input class="in big" name="a" inputmode="decimal" placeholder="٠" value="${e?t.amount:''}" required autocomplete="off"></label>
   <label class="fl"><span>التاريخ</span><input class="in" type="date" name="d" value="${e?t.date:today()}" max="${today()}" required></label>
-  <label class="fl"><span>ملاحظة (اختياري)</span><input class="in" name="n" value="${e?esc(t.note):''}" placeholder="${d?'مثال: سكر وزيت وشاي':'مثال: دفع كاش من الحساب'}" autocomplete="off"></label>
+  <label class="fl"><span>ملاحظة (اختياري)</span><input class="in" name="n" value="${e?esc(t.note):''}" placeholder="${d?'مثال: بوكيه ورد وتغليف هدية':'مثال: دفع كاش من الحساب'}" autocomplete="off"></label>
   <button class="go ${e?'g':d?'r':'g'}">${e?'حفظ التعديل':d?'تسجيل الدين':'خصم من الدين'}</button></form>`)}
 
 function custForm(c){const n=!c;
@@ -674,6 +692,8 @@ home();
   refresh();if(SB_ON&&DBOK){if(!META.code||!META.dname)setTimeout(codeSheet,700);if(META.code)sync('open')}})();
 if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) { window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js').catch(err => console.warn('Service worker registration failed', err))); }
 addEventListener('keydown',e=>{if(e.key==='Escape'&&$('#ov').classList.contains('show'))shut()});
+
+document.addEventListener('click',e=>{const b=e.target.closest('[data-chip]');if(!b)return;const i=document.querySelector('#nqa input[name=n]');i.value=b.dataset.chip;i.focus();i.setSelectionRange(i.value.length,i.value.length)});
 </script>
 </body>
 </html>
